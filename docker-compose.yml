@@ -1,0 +1,154 @@
+services:
+  gitlab:
+    image: gitlab/gitlab-ce:latest
+    container_name: gitlab
+    restart: unless-stopped
+    hostname: 192.168.0.227
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://192.168.0.227'
+        gitlab_rails['db_adapter'] = 'postgresql'
+        gitlab_rails['db_host'] = 'postgresql'
+        gitlab_rails['db_port'] = '5432'
+        gitlab_rails['db_database'] = 'gitlabhq_production'
+        gitlab_rails['db_username'] = 'gitlab'
+        gitlab_rails['db_password'] = 'gitlab_password'
+        gitlab_rails['redis_host'] = 'redis'
+        gitlab_rails['redis_port'] = '6379'
+        gitlab_rails['gitlab_shell_ssh_port'] = 22
+        unicorn['port'] = 8080
+        nginx['listen_port'] = 80
+        nginx['listen_https'] = false
+        nginx['proxy_set_headers'] = {
+          "Host" => "$$http_host",
+          "X-Real-IP" => "$$remote_addr",
+          "X-Forwarded-For" => "$$proxy_add_x_forwarded_for",
+          "X-Forwarded-Proto" => "$$scheme"
+        }
+        # 充分利用32G内存的配置
+        unicorn['worker_processes'] = 8
+        unicorn['worker_timeout'] = 120
+        unicorn['worker_memory_limit_min'] = "256MB"
+        unicorn['worker_memory_limit_max'] = "512MB"
+        # PostgreSQL优化配置（充分利用内存）
+        postgresql['shared_buffers'] = "8GB"
+        postgresql['effective_cache_size'] = "24GB"
+        postgresql['work_mem'] = "32MB"
+        postgresql['maintenance_work_mem'] = "1GB"
+        postgresql['checkpoint_completion_target'] = 0.9
+        postgresql['wal_buffers'] = "64MB"
+        postgresql['default_statistics_target'] = 500
+        postgresql['random_page_cost'] = 1.1
+        postgresql['effective_io_concurrency'] = 400
+        # 强一致性配置
+        postgresql['synchronous_commit'] = 'on'
+        postgresql['fsync'] = 'on'
+        postgresql['full_page_writes'] = 'on'
+        postgresql['wal_log_hints'] = 'on'
+        postgresql['wal_keep_segments'] = 50
+        postgresql['max_wal_size'] = '4GB'
+        postgresql['min_wal_size'] = '1GB'
+        # 日志配置（充分利用SSD）
+        postgresql['log_destination'] = 'stderr'
+        postgresql['logging_collector'] = 'on'
+        postgresql['log_directory'] = 'log'
+        postgresql['log_filename'] = 'postgresql-%Y-%m-%d_%H%M%S.log'
+        postgresql['log_rotation_age'] = '1d'
+        postgresql['log_rotation_size'] = '100MB'
+        postgresql['log_min_duration_statement'] = '1000'
+        postgresql['log_checkpoints'] = 'on'
+        postgresql['log_connections'] = 'on'
+        postgresql['log_disconnections'] = 'on'
+        postgresql['log_lock_waits'] = 'on'
+        postgresql['log_temp_files'] = '0'
+        postgresql['log_autovacuum_min_duration'] = '0'
+        postgresql['log_line_prefix'] = '%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
+    ports:
+      - "80:80"
+      - "443:443"
+      - "22:22"
+    volumes:
+      - ./gitlab/config:/etc/gitlab
+      - ./gitlab/logs:/var/log/gitlab
+      - ./gitlab/data:/var/opt/gitlab
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - gitlab_network
+
+  postgresql:
+    image: postgres:16
+    container_name: gitlab_postgresql
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gitlabhq_production
+      POSTGRES_USER: gitlab
+      POSTGRES_PASSWORD: gitlab_password
+      # 强一致性配置
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    command: >
+      postgres
+      -c synchronous_commit=on
+      -c fsync=on
+      -c full_page_writes=on
+      -c wal_log_hints=on
+      -c wal_keep_size=4GB
+      -c max_wal_size=4GB
+      -c min_wal_size=1GB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=64MB
+      -c shared_buffers=8GB
+      -c effective_cache_size=24GB
+      -c work_mem=32MB
+      -c maintenance_work_mem=1GB
+      -c default_statistics_target=500
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=400
+      -c log_destination=stderr
+      -c logging_collector=on
+      -c log_directory=log
+      -c log_filename=postgresql-%Y-%m-%d_%H%M%S.log
+      -c log_rotation_age=1d
+      -c log_rotation_size=100MB
+      -c log_min_duration_statement=1000
+      -c log_checkpoints=on
+      -c log_connections=on
+      -c log_disconnections=on
+      -c log_lock_waits=on
+      -c log_temp_files=0
+      -c log_autovacuum_min_duration=0
+      -c log_line_prefix='%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
+    volumes:
+      - ./postgresql/data:/var/lib/postgresql/data
+      - ./postgresql/init:/docker-entrypoint-initdb.d
+      - ./postgresql/logs:/var/lib/postgresql/log
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gitlab -d gitlabhq_production"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - gitlab_network
+
+  redis:
+    image: redis:6-alpine
+    container_name: gitlab_redis
+    restart: unless-stopped
+    command: redis-server --save "" --appendonly no --maxmemory 4gb --maxmemory-policy allkeys-lru --tcp-keepalive 300
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - gitlab_network
+
+networks:
+  gitlab_network:
+    driver: bridge
+
