@@ -148,6 +148,16 @@ services:
     networks:
       - gitlab_network
 
+  gitlab-runner-02:
+    image: gitlab/gitlab-runner:latest
+    container_name: gitlab_runner_02
+    restart: unless-stopped
+    volumes:
+      - ./gitlab-runner-02/config:/etc/gitlab-runner
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - gitlab_network
+
 networks:
   gitlab_network:
     driver: bridge

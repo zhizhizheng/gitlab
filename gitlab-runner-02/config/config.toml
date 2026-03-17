@@ -1,0 +1,21 @@
+concurrent = 1
+check_interval = 0
+
+[session_server]
+  session_timeout = 1800
+
+[[runners]]
+  name = "gitlab-runner-02"
+  url = "http://gitlab/"
+  token = "REPLACE_WITH_PROJECT_RUNNER_TOKEN"
+  executor = "docker"
+  run_untagged = false
+  locked = false
+
+  [runners.docker]
+    image = "alpine:latest"
+    privileged = false
+    volumes = ["/cache", "/var/run/docker.sock:/var/run/docker.sock"]
+    cpus = "2"
+    memory = "4g"
+    memory_swap = "4g"
