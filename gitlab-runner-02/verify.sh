@@ -1,6 +1,8 @@
 #!/usr/bin/env sh
 set -eu
 
+CFG="./gitlab-runner-02/config/config.toml"
+
 echo "1) Runner service status"
 echo "----------------------------------------"
 docker compose ps gitlab-runner-02
@@ -11,13 +13,32 @@ echo "----------------------------------------"
 docker compose exec gitlab-runner-02 gitlab-runner verify
 echo
 
-echo "3) Effective resource limits in config"
+echo "3) Effective config (runner block)"
 echo "----------------------------------------"
-if [ -f "./gitlab-runner-02/config/config.toml" ]; then
-  sed -n '/\\[\\[runners\\]\\]/,/^$/p' ./gitlab-runner-02/config/config.toml
+if [ -f "$CFG" ]; then
+  sed -n '/\\[\\[runners\\]\\]/,/^$/p' "$CFG"
 else
-  echo "config.toml not found: ./gitlab-runner-02/config/config.toml"
+  echo "config.toml not found: $CFG"
+  exit 1
 fi
+echo
+
+echo "4) Key checks"
+echo "----------------------------------------"
+check_line() {
+  key="$1"
+  if grep -q "$key" "$CFG"; then
+    echo "[OK] $key"
+  else
+    echo "[FAIL] missing: $key"
+  fi
+}
+
+check_line '^concurrent = 1'
+check_line 'cpus = "2"'
+check_line 'memory = "4g"'
+check_line 'memory_swap = "4g"'
+check_line '/var/run/docker.sock:/var/run/docker.sock'
 echo
 
 cat <<'EOF'
