@@ -158,6 +158,16 @@ services:
     networks:
       - gitlab_network
 
+  frpc:
+    image: snowdreamtech/frpc:latest
+    container_name: frpc
+    restart: unless-stopped
+    volumes:
+      - ./frpc/frpc.ini:/etc/frp/frpc.ini:ro
+    command: ["frpc", "-c", "/etc/frp/frpc.ini"]
+    networks:
+      - gitlab_network
+
 networks:
   gitlab_network:
     driver: bridge
