@@ -71,7 +71,7 @@ echo "📊 监控GitLab启动状态..."
 for i in {1..60}; do
     if docker compose exec -T gitlab gitlab-ctl status > /dev/null 2>&1; then
         echo "✅ GitLab已成功启动！"
-        echo "🌐 访问地址: http://192.168.0.227"
+        echo "🌐 访问地址: https://gitlab.feifan-game.com"
         echo "📝 查看日志: docker compose logs -f gitlab"
         break
     else

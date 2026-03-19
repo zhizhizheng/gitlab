@@ -3,10 +3,10 @@ services:
     image: gitlab/gitlab-ce:latest
     container_name: gitlab
     restart: unless-stopped
-    hostname: 192.168.0.227
+    hostname: gitlab.feifan-game.com
     environment:
       GITLAB_OMNIBUS_CONFIG: |
-        external_url 'http://192.168.0.227'
+        external_url 'https://gitlab.feifan-game.com'
         gitlab_rails['db_adapter'] = 'postgresql'
         gitlab_rails['db_host'] = 'postgresql'
         gitlab_rails['db_port'] = '5432'
@@ -23,7 +23,9 @@ services:
           "Host" => "$$http_host",
           "X-Real-IP" => "$$remote_addr",
           "X-Forwarded-For" => "$$proxy_add_x_forwarded_for",
-          "X-Forwarded-Proto" => "$$scheme"
+          "X-Forwarded-Port" => "443",
+          "X-Forwarded-Proto" => "https", # 强制识别为 https
+          "X-Forwarded-Ssl" => "on"
         }
         # 充分利用32G内存的配置
         unicorn['worker_processes'] = 8
