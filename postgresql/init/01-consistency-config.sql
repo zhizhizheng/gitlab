@@ -75,7 +75,19 @@ SELECT pg_reload_conf();
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 
 -- 创建用于性能分析的扩展
-CREATE EXTENSION IF NOT EXISTS pg_stat_monitor;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM pg_available_extensions
+        WHERE name = 'pg_stat_monitor'
+    ) THEN
+        CREATE EXTENSION IF NOT EXISTS pg_stat_monitor;
+    ELSE
+        RAISE NOTICE 'pg_stat_monitor is not available in this PostgreSQL image, skip installation.';
+    END IF;
+END
+$$;
 
 -- 设置统计收集
 ALTER SYSTEM SET track_activities = 'on';
