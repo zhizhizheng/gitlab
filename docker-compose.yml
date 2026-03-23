@@ -12,6 +12,10 @@ services:
         postgresql['enable'] = false
         redis['enable'] = false
 
+        # 禁用不需要的内置组件（减少资源占用）
+        prometheus_monitoring['enable'] = false
+        gitlab_kas['enable'] = false
+
         # 外部 PostgreSQL 连接
         gitlab_rails['db_adapter'] = 'postgresql'
         gitlab_rails['db_host'] = 'postgresql'
@@ -48,8 +52,6 @@ services:
         # Sidekiq 配置
         sidekiq['max_concurrency'] = 20
 
-        # 禁用不需要的内置监控组件（减少资源占用）
-        prometheus_monitoring['enable'] = false
     shm_size: '256m'
     ports:
       - "80:80"
